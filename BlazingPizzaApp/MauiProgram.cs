@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using BlazingPizzaApp.Data;
+using Microsoft.Extensions.Logging;
 
 namespace BlazingPizzaApp
 {
@@ -17,7 +18,8 @@ namespace BlazingPizzaApp
             builder.Services.AddMauiBlazorWebView();
 
 #if DEBUG
-    		builder.Services.AddBlazorWebViewDeveloperTools();
+            builder.Services.AddSingleton<IPizzaSpecials, PizzaInMemoryData>();
+            builder.Services.AddBlazorWebViewDeveloperTools();
     		builder.Logging.AddDebug();
 #endif
 
