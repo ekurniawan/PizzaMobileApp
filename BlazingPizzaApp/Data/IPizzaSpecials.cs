@@ -7,6 +7,6 @@ namespace BlazingPizzaApp.Data
 {
     public interface IPizzaSpecials
     {
-        List<PizzaSpecial> PizzaSpecials { get; }
+        Task<IEnumerable<PizzaSpecial>> GetPizzaSpecialsAsync();
     }
 }

@@ -17,10 +17,14 @@ namespace BlazingPizzaApp
 
             builder.Services.AddMauiBlazorWebView();
 
+            builder.Services.AddHttpClient<IPizzaSpecials, PizzaSpecialsServices>(client =>
+            {
+                client.BaseAddress = new Uri("https://localhost:7219/");
+            });
+
 #if DEBUG
-            builder.Services.AddSingleton<IPizzaSpecials, PizzaInMemoryData>();
             builder.Services.AddBlazorWebViewDeveloperTools();
-    		builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
 #endif
 
             return builder.Build();

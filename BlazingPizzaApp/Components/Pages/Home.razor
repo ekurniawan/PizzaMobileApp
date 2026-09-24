@@ -18,13 +18,13 @@
 </ul>
 
 @code{
-    private List<PizzaSpecial> pizzaSpecials;
+    private List<PizzaSpecial> pizzaSpecials = new List<PizzaSpecial>();
 
     [Inject]
     private IPizzaSpecials PizzaSpecialsService { get; set; }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        pizzaSpecials = PizzaSpecialsService.PizzaSpecials;
+        pizzaSpecials = (await PizzaSpecialsService.GetPizzaSpecialsAsync()).ToList();
     }
 }
