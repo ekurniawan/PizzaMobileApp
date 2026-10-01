@@ -2,13 +2,15 @@
 @using BlazingPizzaApp.Data
 @using BlazingPizzaApp.Model
 @using BlazingPizzaApp.Shared
+@using BlazingPizzaApp.Services
+@inject OrderState OrderState
 
 <h1>Blazing Pizzas</h1>
 
 <ul class="pizza-cards">
     @foreach (var pizzaSpecial in pizzaSpecials)
     {
-        <li @onclick="() => ShowConfigurePizzaDialog(pizzaSpecial)" style="background-image: url('@pizzaSpecial.ImageUrl')">
+        <li @onclick="() => OrderState.ShowConfigurePizzaDialog(pizzaSpecial)" style="background-image: url('@pizzaSpecial.ImageUrl')">
             <div class="pizza-info">
                 <span class="title">@pizzaSpecial.Name</span>
                 @pizzaSpecial.Description
@@ -18,15 +20,14 @@
     }
 </ul>
 
-@if (showingConfigureDialog)
+@if (OrderState.ShowingConfigureDialog)
 {
-    <ConfigurePizzaDialog Pizza="configuringPizza" />
+    <ConfigurePizzaDialog Pizza="OrderState.ConfiguringPizza" 
+        OnCancel="OrderState.CancelConfigurePizzaDialog" 
+        OnConfirm="OrderState.ConfirmConfigurePizzaDialog" />
 }
 
 @code{
-    Pizza configuringPizza;
-    bool showingConfigureDialog;
-
     private List<PizzaSpecial> pizzaSpecials = new List<PizzaSpecial>();
 
     [Inject]
@@ -36,18 +37,4 @@
     {
         pizzaSpecials = (await PizzaSpecialsService.GetPizzaSpecialsAsync()).ToList();
     }
-
-    void ShowConfigurePizzaDialog(PizzaSpecial special)
-    {
-        configuringPizza = new Pizza()
-        {
-            Special = special,
-            SpecialId = special.Id,
-            Size = Pizza.DefaultSize
-        };
-
-        showingConfigureDialog = true;
-    }
-
-
 }
