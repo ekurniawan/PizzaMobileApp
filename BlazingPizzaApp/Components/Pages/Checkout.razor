@@ -1,8 +1,8 @@
 ﻿@page "/checkout"
 @using BlazingPizzaApp.Model
+@using BlazingPizzaApp.Data
 @using BlazingPizzaApp.Services
 @inject OrderState OrderState
-@inject HttpClient HttpClient
 @inject NavigationManager NavigationManager 
 
 <div class="top-bar">
@@ -51,12 +51,16 @@
 
     bool isSubmitting;
 
+    [Inject]
+    private IPizzaSpecials PizzaSpecialsService { get; set; }
+
     async Task PlaceOrder()
     {
         isSubmitting = true;
-        var response = await HttpClient.PostAsJsonAsync(NavigationManager.BaseUri + "orders", OrderState.Order);
-        var newOrderId = await response.Content.ReadFromJsonAsync<int>();
-        //OrderState.ResetOrder();
+        await PizzaSpecialsService.PlaceOrderAsync(OrderState.Order);
+        OrderState.ResetOrder();
         NavigationManager.NavigateTo("/");
+
+       
     }
 }

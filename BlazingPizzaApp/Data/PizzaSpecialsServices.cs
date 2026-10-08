@@ -28,5 +28,12 @@ namespace BlazingPizzaApp.Data
                 throw;
             }
         }
+
+        public async Task<int> PlaceOrderAsync(Order order)
+        {
+            var response = await _httpClient.PostAsJsonAsync("orders", order);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<int>();
+        }
     }
 }

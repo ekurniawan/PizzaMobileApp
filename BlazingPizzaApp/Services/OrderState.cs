@@ -39,14 +39,14 @@ namespace BlazingPizzaApp.Services
             ShowingConfigureDialog = false;
         }
 
-        public void RemoveConfiguredPizza(Pizza pizza)
-        {
-            Order.Pizzas.Remove(pizza);
-        }
-
         public void ResetOrder()
         {
             Order = new Order();
+        }
+
+        public void RemoveConfiguredPizza(Pizza pizza)
+        {
+            Order.Pizzas.Remove(pizza);
         }
 
     }
