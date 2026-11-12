@@ -1,0 +1,252 @@
+@page "/geolocation"
+@using Microsoft.Maui.Devices.Sensors
+
+<div class="main">
+    <h1>Geolocation Demo</h1>
+
+    <h3>1. Current Location</h3>
+    <button class="btn btn-warning" @onclick="GetCurrentLocationAsync" disabled="@isBusy">
+        Get Current Location
+    </button>
+
+    @if (currentLocation != null)
+    {
+        <ul class="mt-3">
+            <li>Latitude: @currentLocation.Latitude</li>
+            <li>Longitude: @currentLocation.Longitude</li>
+            <li>Altitude: @(currentLocation.Altitude?.ToString("F2") ?? "-")</li>
+            <li>Accuracy: @(currentLocation.Accuracy?.ToString("F2") ?? "-") m</li>
+            <li>Timestamp: @currentLocation.Timestamp.LocalDateTime</li>
+        </ul>
+    }
+
+    <hr />
+
+    <h3>2. Geocoding (Address to Coordinates)</h3>
+    <div class="input-group mb-2">
+        <input class="form-control" type="text" placeholder="e.g. Monas, Jakarta" @bind="address" @bind:event="oninput" />
+        <button class="btn btn-warning" @onclick="GeocodeAsync" disabled="@(isBusy || string.IsNullOrWhiteSpace(address))">
+            Find Coordinates
+        </button>
+    </div>
+
+    @if (geocodedLocations.Count > 0)
+    {
+        <ul>
+            @foreach (var loc in geocodedLocations)
+            {
+                <li>
+                    Latitude: @loc.Latitude, Longitude: @loc.Longitude
+                    <button class="btn btn-sm btn-secondary ms-2" @onclick="() => SetPoint(loc, true)">Set as A</button>
+                    <button class="btn btn-sm btn-secondary ms-1" @onclick="() => SetPoint(loc, false)">Set as B</button>
+                </li>
+            }
+        </ul>
+    }
+
+    <hr />
+
+    <h3>3. Distance Between Two Points</h3>
+    <div class="row g-2">
+        <div class="col-md-6">
+            <h5>Point A</h5>
+            <input class="form-control mb-1" type="number" step="any" placeholder="Latitude" @bind="latA" />
+            <input class="form-control mb-1" type="number" step="any" placeholder="Longitude" @bind="lonA" />
+            <button class="btn btn-secondary" @onclick="UseCurrentForA" disabled="@(currentLocation == null)">Use current location</button>
+        </div>
+        <div class="col-md-6">
+            <h5>Point B</h5>
+            <input class="form-control mb-1" type="number" step="any" placeholder="Latitude" @bind="latB" />
+            <input class="form-control mb-1" type="number" step="any" placeholder="Longitude" @bind="lonB" />
+            <button class="btn btn-secondary" @onclick="UseCurrentForB" disabled="@(currentLocation == null)">Use current location</button>
+        </div>
+    </div>
+
+    <button class="btn btn-warning mt-3" @onclick="CalculateDistance">Calculate Distance</button>
+
+    @if (distanceKm.HasValue)
+    {
+        <p class="mt-3">
+            <strong>Distance:</strong> @distanceKm.Value.ToString("F3") km
+            (@((distanceKm.Value * 1000).ToString("F0")) m,
+            @((distanceKm.Value * 0.621371).ToString("F3")) miles)
+        </p>
+    }
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <p class="text-danger mt-3">@message</p>
+    }
+</div>
+
+@code {
+    private Location? currentLocation;
+    private double latA, lonA, latB, lonB;
+    private double? distanceKm;
+    private string? message;
+    private bool isBusy;
+    private string? address;
+    private List<Location> geocodedLocations = new();
+
+    private async Task GeocodeAsync()
+    {
+        isBusy = true;
+        message = null;
+        geocodedLocations.Clear();
+
+        try
+        {
+            try
+            {
+                var results = await Geocoding.Default.GetLocationsAsync(address!);
+                geocodedLocations = results?.ToList() ?? new();
+            }
+            catch (Exception)
+            {
+                // Native geocoder unavailable (e.g. Windows without a map service token); fall back below.
+            }
+
+            if (geocodedLocations.Count == 0)
+            {
+                geocodedLocations = await GeocodeWithNominatimAsync(address!);
+            }
+
+            if (geocodedLocations.Count == 0)
+            {
+                message = "No coordinates found for that address.";
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Geocoding error: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task<List<Location>> GeocodeWithNominatimAsync(string query)
+    {
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("BlazingPizzaApp/1.0");
+
+        var url = $"https://nominatim.openstreetmap.org/search?format=json&limit=5&q={Uri.EscapeDataString(query)}";
+        var results = await client.GetFromJsonAsync<List<NominatimResult>>(url) ?? new();
+
+        return results
+            .Where(r => double.TryParse(r.Lat, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _)
+                     && double.TryParse(r.Lon, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+            .Select(r => new Location(
+                double.Parse(r.Lat!, System.Globalization.CultureInfo.InvariantCulture),
+                double.Parse(r.Lon!, System.Globalization.CultureInfo.InvariantCulture)))
+            .ToList();
+    }
+
+    private class NominatimResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("lat")]
+        public string? Lat { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("lon")]
+        public string? Lon { get; set; }
+    }
+
+    private void SetPoint(Location loc, bool isPointA)
+    {
+        if (isPointA)
+        {
+            latA = loc.Latitude;
+            lonA = loc.Longitude;
+        }
+        else
+        {
+            latB = loc.Latitude;
+            lonB = loc.Longitude;
+        }
+    }
+
+    private async Task GetCurrentLocationAsync()
+    {
+        isBusy = true;
+        message = null;
+
+        try
+        {
+            var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+            if (status != PermissionStatus.Granted)
+            {
+                status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+            }
+
+            if (status != PermissionStatus.Granted)
+            {
+                message = "Location permission was denied.";
+                return;
+            }
+
+            var request = new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(15));
+            currentLocation = await Geolocation.Default.GetLocationAsync(request)
+                              ?? await Geolocation.Default.GetLastKnownLocationAsync();
+
+            if (currentLocation == null)
+            {
+                message = "Unable to determine the current location.";
+            }
+        }
+        catch (FeatureNotSupportedException)
+        {
+            message = "Geolocation is not supported on this device.";
+        }
+        catch (FeatureNotEnabledException)
+        {
+            message = "Location services are disabled. Please enable them.";
+        }
+        catch (PermissionException)
+        {
+            message = "Location permission is required.";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private void UseCurrentForA()
+    {
+        if (currentLocation == null) return;
+        latA = currentLocation.Latitude;
+        lonA = currentLocation.Longitude;
+    }
+
+    private void UseCurrentForB()
+    {
+        if (currentLocation == null) return;
+        latB = currentLocation.Latitude;
+        lonB = currentLocation.Longitude;
+    }
+
+    private void CalculateDistance()
+    {
+        message = null;
+
+        if (!IsValid(latA, lonA) || !IsValid(latB, lonB))
+        {
+            distanceKm = null;
+            message = "Latitude must be between -90 and 90, and longitude between -180 and 180.";
+            return;
+        }
+
+        distanceKm = Location.CalculateDistance(
+            new Location(latA, lonA),
+            new Location(latB, lonB),
+            DistanceUnits.Kilometers);
+    }
+
+    private static bool IsValid(double lat, double lon)
+        => lat is >= -90 and <= 90 && lon is >= -180 and <= 180;
+}

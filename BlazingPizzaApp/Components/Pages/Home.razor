@@ -70,8 +70,12 @@
     [Inject]
     private IPizzaSpecials PizzaSpecialsService { get; set; }
 
+    
+
     protected override async Task OnInitializedAsync()
     {
+        
+
         pizzaSpecials = (await PizzaSpecialsService.GetPizzaSpecialsAsync()).ToList();
     }
 }
