@@ -1,0 +1,101 @@
+@page "/preferences"
+@using Microsoft.Maui.Storage
+
+<div class="main">
+    <h1>Preferences Demo</h1>
+    <p>Settings are stored persistently on the device using <code>Preferences</code>.</p>
+
+    <div class="mb-2">
+        <label class="form-label">Name</label>
+        <input class="form-control" type="text" @bind="userName" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Default pizza size</label>
+        <select class="form-select" @bind="pizzaSize">
+            <option value="9">9"</option>
+            <option value="12">12"</option>
+            <option value="16">16"</option>
+        </select>
+    </div>
+
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="notif" @bind="notifications" />
+        <label class="form-check-label" for="notif">Enable notifications</label>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Delivery address</label>
+        <input class="form-control" type="text" @bind="deliveryAddress" />
+    </div>
+
+    <button class="btn btn-warning" @onclick="Save">Save</button>
+    <button class="btn btn-secondary ms-1" @onclick="Load">Reload</button>
+    <button class="btn btn-danger ms-1" @onclick="Clear">Clear All</button>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <p class="mt-3">@message</p>
+    }
+
+    <hr />
+    <h5>Stored values</h5>
+    <ul>
+        <li>Last saved: @(lastSaved?.ToString("g") ?? "-")</li>
+        <li>Name: @Preferences.Default.Get(NameKey, "(not set)")</li>
+        <li>Pizza size: @Preferences.Default.Get(SizeKey, 12)"</li>
+        <li>Notifications: @Preferences.Default.Get(NotifKey, true)</li>
+        <li>Address: @Preferences.Default.Get(AddressKey, "(not set)")</li>
+    </ul>
+</div>
+
+@code {
+    private const string NameKey = "user_name";
+    private const string SizeKey = "pizza_size";
+    private const string NotifKey = "notifications";
+    private const string AddressKey = "delivery_address";
+    private const string SavedKey = "last_saved";
+
+    private string userName = string.Empty;
+    private int pizzaSize = 12;
+    private bool notifications = true;
+    private string deliveryAddress = string.Empty;
+    private DateTime? lastSaved;
+    private string? message;
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        userName = Preferences.Default.Get(NameKey, string.Empty);
+        pizzaSize = Preferences.Default.Get(SizeKey, 12);
+        notifications = Preferences.Default.Get(NotifKey, true);
+        deliveryAddress = Preferences.Default.Get(AddressKey, string.Empty);
+        lastSaved = Preferences.Default.ContainsKey(SavedKey)
+            ? Preferences.Default.Get(SavedKey, DateTime.MinValue)
+            : null;
+        message = "Preferences loaded.";
+    }
+
+    private void Save()
+    {
+        Preferences.Default.Set(NameKey, userName ?? string.Empty);
+        Preferences.Default.Set(SizeKey, pizzaSize);
+        Preferences.Default.Set(NotifKey, notifications);
+        Preferences.Default.Set(AddressKey, deliveryAddress ?? string.Empty);
+        lastSaved = DateTime.Now;
+        Preferences.Default.Set(SavedKey, lastSaved.Value);
+        message = "Preferences saved.";
+    }
+
+    private void Clear()
+    {
+        Preferences.Default.Clear();
+        userName = string.Empty;
+        pizzaSize = 12;
+        notifications = true;
+        deliveryAddress = string.Empty;
+        lastSaved = null;
+        message = "All preferences cleared.";
+    }
+}
