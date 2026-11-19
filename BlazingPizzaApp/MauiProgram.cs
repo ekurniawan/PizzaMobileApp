@@ -24,6 +24,7 @@ namespace BlazingPizzaApp
             });
 
             builder.Services.AddScoped<OrderState>();
+            builder.Services.AddSingleton<NoteDatabase>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

@@ -1,0 +1,126 @@
+@page "/sqlite"
+@using BlazingPizzaApp.Model
+@using BlazingPizzaApp.Services
+@inject NoteDatabase Database
+
+<div class="main">
+    <h1>SQLite Demo</h1>
+    <p>Notes are stored in a local SQLite database: <code>@NoteDatabase.DbPath</code></p>
+
+    <div class="mb-2">
+        <input class="form-control mb-1" type="text" placeholder="Title" @bind="title" @bind:event="oninput" />
+        <textarea class="form-control mb-2" rows="3" placeholder="Content" @bind="content" @bind:event="oninput"></textarea>
+        <button class="btn btn-warning" @onclick="SaveAsync" disabled="@string.IsNullOrWhiteSpace(title)">
+            @(editing == null ? "Add Note" : "Update Note")
+        </button>
+        @if (editing != null)
+        {
+            <button class="btn btn-secondary ms-1" @onclick="CancelEdit">Cancel</button>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <p class="text-danger">@message</p>
+    }
+
+    <hr />
+    <h5>Notes (@notes.Count)</h5>
+
+    @if (notes.Count == 0)
+    {
+        <p>No notes yet.</p>
+    }
+    else
+    {
+        <ul class="list-group">
+            @foreach (var note in notes)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong>@note.Title</strong>
+                        <div>@note.Content</div>
+                        <small class="text-muted">@note.CreatedAt.ToString("g")</small>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => Edit(note)">Edit</button>
+                        <button class="btn btn-sm btn-danger ms-1" @onclick="() => DeleteAsync(note)">Delete</button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private List<Note> notes = new();
+    private Note? editing;
+    private string title = string.Empty;
+    private string content = string.Empty;
+    private string? message;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            notes = await Database.GetNotesAsync();
+        }
+        catch (Exception ex)
+        {
+            message = $"Database error: {ex.Message}";
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        message = null;
+
+        try
+        {
+            var note = editing ?? new Note();
+            note.Title = title.Trim();
+            note.Content = content.Trim();
+
+            await Database.SaveNoteAsync(note);
+            CancelEdit();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            message = $"Database error: {ex.Message}";
+        }
+    }
+
+    private void Edit(Note note)
+    {
+        editing = note;
+        title = note.Title;
+        content = note.Content;
+    }
+
+    private void CancelEdit()
+    {
+        editing = null;
+        title = string.Empty;
+        content = string.Empty;
+    }
+
+    private async Task DeleteAsync(Note note)
+    {
+        try
+        {
+            await Database.DeleteNoteAsync(note);
+            if (editing?.Id == note.Id)
+            {
+                CancelEdit();
+            }
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            message = $"Database error: {ex.Message}";
+        }
+    }
+}
